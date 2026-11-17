@@ -35,7 +35,7 @@ public final class MedicineParser {
             int number = index + 1;
             String line = lines.get(index);
             // BOM на початку UTF-8 файла (його додає, наприклад, Блокнот Windows) не є даними.
-            if (index == 0 && line.startsWith("\\uFEF")) {
+           if (index == 0 && line.startsWith("\uFEFF")) {
                 line = line.substring(1);
             }
             String problem = tryParse(line, medicines);
