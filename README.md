@@ -109,7 +109,6 @@ src/main/resources/version.properties   шаблон, який заповнює 
 src/test/java/...           тести JUnit 5
 data/expected-report.txt    контрольний звіт ЛР № 1 для перевірки сумісності
 .github/workflows/ci.yml    CI на ubuntu, windows, macos
-ai/                         ролі ШІ-помічників
 ```
 
 ## Клас-сутність `Medicine` (ЛР № 2)
