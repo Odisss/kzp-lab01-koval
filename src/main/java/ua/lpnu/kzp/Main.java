@@ -169,7 +169,7 @@ public final class Main {
         out.printf("Параметри:%n");
         out.printf("  --input <файл>   вхідний CSV, UTF-8 (типово %s)%n", DEFAULT_INPUT);
         out.printf("  --output <файл>  файл звіту (типово %s)%n", DEFAULT_OUTPUT);
-        out.printf("  --version        версія та номер збірки, напр. 1.0.0+local%n");
+        out.printf("  --version        версія та номер збірки, напр. 1.1.0+local%n");
         out.printf("  --help           ця довідка%n");
         out.printf("%n");
         out.printf("Формат рядка: name;form;price;daysToExpire;prescription%n");
