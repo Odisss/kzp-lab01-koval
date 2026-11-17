@@ -1,87 +1,177 @@
 package ua.lpnu.kzp;
 
 import java.io.IOException;
+import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
-
-/** Головний клас програми для обробки даних аптеки. */
+/**
+ * Консольна програма «Аптека» (варіант 11): читає записи про препарати, перевіряє їх,
+ * обчислює чотири показники та виводить звіт у консоль і файл.
+ */
 public final class Main {
+    /** Код завершення: успіх. */
+    static final int EXIT_OK = 0;
+    /** Код завершення: помилка виконання (немає файла, немає коректних записів). */
+    static final int EXIT_ERROR = 1;
+    /** Код завершення: неправильні аргументи командного рядка. */
+    static final int EXIT_USAGE = 2;
 
+    private static final String DEFAULT_INPUT = "data/input.csv";
+    private static final String DEFAULT_OUTPUT = "out/report.txt";
+
+    /* Забороняє створення екземплярів класу запуску. */
     private Main() {
     }
 
+    /**
+     * Точка входу програми.
+     *
+     * @param args аргументи: {@code --help}, {@code --version}, {@code --input <файл>},
+     *             {@code --output <файл>}
+     */
     public static void main(String[] args) {
-        Path inputPath = Path.of("data", "input.csv");
-        
+        // Явний UTF-8 для консолі, щоб українські літери не залежали від налаштувань ОС.
+        PrintStream out = new PrintStream(System.out, true, StandardCharsets.UTF_8);
+        PrintStream err = new PrintStream(System.err, true, StandardCharsets.UTF_8);
+        int code = run(args, out, err);
+        if (code != EXIT_OK) {
+            System.exit(code);
+        }
+    }
+
+    /**
+     * Виконує програму й повертає код завершення (окремо від {@link #main}, щоб це можна
+     * було перевірити в тестах).
+     *
+     * @param args аргументи командного рядка
+     * @param out  потік звичайного виводу
+     * @param err  потік повідомлень про помилки
+     * @return {@link #EXIT_OK}, {@link #EXIT_ERROR} або {@link #EXIT_USAGE}
+     */
+    static int run(String[] args, PrintStream out, PrintStream err) {
+        // --version розпізнається до будь-якої іншої обробки аргументів.
+        if (args.length == 1 && "--version".equals(args[0])) {
+            out.printf("%s%n", BuildInfo.version());
+            return EXIT_OK;
+        }
+
+        String input = DEFAULT_INPUT;
+        String output = DEFAULT_OUTPUT;
+        for (int i = 0; i < args.length; i++) {
+            String arg = args[i];
+            switch (arg) {
+                case "--help", "-h" -> {
+                    printHelp(out);
+                    return EXIT_OK;
+                }
+                case "--input" -> {
+                    if (i + 1 >= args.length) {
+                        return usageError(err, "після --input потрібен шлях до файла");
+                    }
+                    input = args[++i];
+                }
+                case "--output" -> {
+                    if (i + 1 >= args.length) {
+                        return usageError(err, "після --output потрібен шлях до файла");
+                    }
+                    output = args[++i];
+                }
+                default -> {
+                    return usageError(err, "невідомий аргумент: " + arg);
+                }
+            }
+        }
+
+        Path inputPath;
+        Path outputPath;
+        try {
+            inputPath = Path.of(input);
+            outputPath = Path.of(output);
+        } catch (InvalidPathException exception) {
+            return usageError(err, "некоректний шлях: " + exception.getInput());
+        }
+        return process(inputPath, outputPath, out, err);
+    }
+
+    /**
+     * Читає файл, обчислює показники, друкує звіт і записує його у файл.
+     *
+     * @param input  шлях до вхідного файла
+     * @param output шлях до файла звіту
+     * @param out    потік звичайного виводу
+     * @param err    потік повідомлень про помилки
+     * @return код завершення
+     */
+    private static int process(Path input, Path output, PrintStream out, PrintStream err) {
         List<String> lines;
         try {
-            lines = Files.readAllLines(inputPath, StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            System.err.println("Помилка читання файлу: " + e.getMessage());
-            return;
+            if (!Files.isRegularFile(input)) {
+                err.printf("Помилка: файл не знайдено: %s%n", input);
+                return EXIT_ERROR;
+            }
+            lines = FileReport.readLines(input);
+        } catch (IOException exception) {
+            // Найчастіше це файл не в UTF-8 (MalformedInputException) або немає прав доступу.
+            err.printf("Помилка читання %s: %s%n", input, exception);
+            return EXIT_ERROR;
         }
 
-        List<String> errors = new ArrayList<>();
-        int validCount = 0;
-        double totalPrice = 0.0;
-        int minDaysToExpire = Integer.MAX_VALUE;
-        int prescriptionCount = 0;
+        // Послідовність однакова для всіх рядків: прочитати → перевірити → обчислити → вивести.
+        ParseResult parsed = MedicineParser.parseAll(lines);
+        Stats stats = Stats.compute(parsed.medicines());
+        String report = ReportFormatter.format(stats, parsed.errors());
 
-        for (int i = 0; i < lines.size(); i++) {
-            String[] fields = lines.get(i).split(";", -1);
-            
-            if (fields.length != 5) {
-                errors.add("Рядок %d: очікується 5 полів".formatted(i + 1));
-                continue;
-            }
-
-            if (fields[0].isBlank() || fields[1].isBlank()) {
-                errors.add("Рядок %d: порожня форма або назва препарату".formatted(i + 1));
-                continue;
-            }
-
-            try {
-                double price = Double.parseDouble(fields[2]);
-                int daysToExpire = Integer.parseInt(fields[3]);
-                boolean isPrescription = Boolean.parseBoolean(fields[4]);
-
-                if (price < 0 || daysToExpire < 0) {
-                    errors.add("Рядок %d: від'ємне числове значення".formatted(i + 1));
-                    continue;
-                }
-
-                validCount++;
-                totalPrice += price;
-                minDaysToExpire = Math.min(minDaysToExpire, daysToExpire);
-                if (isPrescription) {
-                    prescriptionCount++;
-                }
-
-            } catch (NumberFormatException exception) {
-                errors.add("Рядок %d: числове поле має помилковий формат".formatted(i + 1));
-            }
-        }
-
-        double averagePrice = validCount == 0 ? 0.0 : totalPrice / validCount;
-
-        StringBuilder report = new StringBuilder();
-        report.append(String.format(Locale.ROOT, "Коректних записів: %d%n", validCount));
-        report.append(String.format(Locale.ROOT, "Середня ціна: %.2f грн%n", averagePrice));
-        report.append(String.format(Locale.ROOT, "Найменший термін: %d днів%n", minDaysToExpire == Integer.MAX_VALUE ? 0 : minDaysToExpire));
-        report.append(String.format(Locale.ROOT, "Рецептурних препаратів: %d%n", prescriptionCount));
-        report.append(String.format(Locale.ROOT, "Помилок: %d%n", errors.size()));
-        
-        System.out.print(report.toString());
-        errors.forEach(System.out::println);
+        out.print(report);
         try {
-            FileReport.writeReport(Path.of("out", "report.txt"), report.toString());
-        } catch (IOException e) {
-            System.err.println("Помилка запису у файл: " + e.getMessage());
+            FileReport.writeReport(output, report);
+            out.printf("Звіт записано: %s%n", output);
+        } catch (IOException exception) {
+            err.printf("Помилка запису %s: %s%n", output, exception);
+            return EXIT_ERROR;
         }
+
+        if (stats.count() == 0) {
+            err.printf("Помилка: у файлі немає жодного коректного запису%n");
+            return EXIT_ERROR;
+        }
+        return EXIT_OK;
+    }
+
+    /**
+     * Повідомляє про неправильні аргументи.
+     *
+     * @param err     потік помилок
+     * @param message опис проблеми
+     * @return {@link #EXIT_USAGE}
+     */
+    private static int usageError(PrintStream err, String message) {
+        err.printf("Помилка: %s%n", message);
+        err.printf("Довідка: java -jar lab01.jar --help%n");
+        return EXIT_USAGE;
+    }
+
+    /**
+     * Друкує довідку.
+     *
+     * @param out потік виводу
+     */
+    private static void printHelp(PrintStream out) {
+        out.printf("Аптека: звіт за файлом препаратів (лабораторна робота № 1, варіант 11)%n");
+        out.printf("%n");
+        out.printf("Використання:%n");
+        out.printf("  java -jar lab01.jar [--input <файл>] [--output <файл>]%n");
+        out.printf("  java -jar lab01.jar --help | --version%n");
+        out.printf("%n");
+        out.printf("Параметри:%n");
+        out.printf("  --input <файл>   вхідний CSV, UTF-8 (типово %s)%n", DEFAULT_INPUT);
+        out.printf("  --output <файл>  файл звіту (типово %s)%n", DEFAULT_OUTPUT);
+        out.printf("  --version        версія та номер збірки, напр. 1.0.0+local%n");
+        out.printf("  --help           ця довідка%n");
+        out.printf("%n");
+        out.printf("Формат рядка: name;form;price;daysToExpire;prescription%n");
     }
 }

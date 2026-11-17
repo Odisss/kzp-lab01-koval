@@ -1,0 +1,8 @@
+# Нормалізуємо завершення рядків у текстових файлах.
+* text=auto eol=lf
+# Windows-скрипт Wrapper має працювати з CRLF.
+*.cmd text eol=crlf
+# Бінарні файли не порівнюємо як текст.
+*.jar binary
+*.png binary
+*.jpg binary
