@@ -61,6 +61,7 @@ public final class Main {
 
         String input = DEFAULT_INPUT;
         String output = DEFAULT_OUTPUT;
+        boolean availability = false;
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
             switch (arg) {
@@ -80,6 +81,7 @@ public final class Main {
                     }
                     output = args[++i];
                 }
+                case "--availability" -> availability = true;
                 default -> {
                     return usageError(err, "невідомий аргумент: " + arg);
                 }
@@ -94,7 +96,7 @@ public final class Main {
         } catch (InvalidPathException exception) {
             return usageError(err, "некоректний шлях: " + exception.getInput());
         }
-        return process(inputPath, outputPath, out, err);
+        return process(inputPath, outputPath, availability, out, err);
     }
 
     /**
@@ -102,11 +104,13 @@ public final class Main {
      *
      * @param input  шлях до вхідного файла
      * @param output шлях до файла звіту
+     * @param availability {@code true}, якщо потрібно додатково вивести оцінку доступності
      * @param out    потік звичайного виводу
      * @param err    потік повідомлень про помилки
      * @return код завершення
      */
-    private static int process(Path input, Path output, PrintStream out, PrintStream err) {
+    private static int process(Path input, Path output, boolean availability,
+                               PrintStream out, PrintStream err) {
         List<String> lines;
         try {
             if (!Files.isRegularFile(input)) {
@@ -126,6 +130,10 @@ public final class Main {
         String report = ReportFormatter.format(stats, parsed.errors());
 
         out.print(report);
+        if (availability) {
+            // Додатковий розділ лише в консолі: файл звіту лишається сумісним із ЛР1–ЛР2.
+            out.print(AvailabilityReport.format(parsed.medicines()));
+        }
         try {
             FileReport.writeReport(output, report);
             out.printf("Звіт записано: %s%n", output);
@@ -160,16 +168,17 @@ public final class Main {
      * @param out потік виводу
      */
     private static void printHelp(PrintStream out) {
-        out.printf("Аптека: звіт за файлом препаратів (лабораторна робота № 1, варіант 11)%n");
+        out.printf("Аптека: звіт за файлом препаратів (лабораторні роботи № 1–3, варіант 11)%n");
         out.printf("%n");
         out.printf("Використання:%n");
-        out.printf("  java -jar lab01.jar [--input <файл>] [--output <файл>]%n");
+        out.printf("  java -jar lab01.jar [--input <файл>] [--output <файл>] [--availability]%n");
         out.printf("  java -jar lab01.jar --help | --version%n");
         out.printf("%n");
         out.printf("Параметри:%n");
         out.printf("  --input <файл>   вхідний CSV, UTF-8 (типово %s)%n", DEFAULT_INPUT);
         out.printf("  --output <файл>  файл звіту (типово %s)%n", DEFAULT_OUTPUT);
-        out.printf("  --version        версія та номер збірки, напр. 1.1.0+local%n");
+        out.printf("  --availability   додатково вивести оцінку доступності препаратів%n");
+        out.printf("  --version        версія та номер збірки, напр. 1.2.0+local%n");
         out.printf("  --help           ця довідка%n");
         out.printf("%n");
         out.printf("Формат рядка: name;form;price;daysToExpire;prescription%n");
