@@ -1,10 +1,12 @@
 # kzp-lab01 — «Аптека» (варіант 11)
 
-Лабораторні роботи № 1–2 з курсу «Кросплатформні засоби програмування».
+Лабораторні роботи № 1–3 з курсу «Кросплатформні засоби програмування».
 
 - ЛР № 1 (`v1.0.0`) — консольний продукт, Maven, тести, SpotBugs, CI на трьох ОС.
 - ЛР № 2 (`v1.1.0`) — предметна частина перебудована на клас-сутність `Medicine`,
   фабрику `fromCsv` і record `ExpiryPrescription`; зовнішній звіт не змінився.
+- ЛР № 3 (`v1.2.0`) — ієрархія: абстрактний `Medicine`, підтипи `PrescriptionMedicine` і
+  `FreeMedicine`, enum `MedicineKind`, поліморфна оцінка доступності; звіт не змінився.
 
 ## Призначення
 
@@ -46,8 +48,9 @@ name;form;price;daysToExpire;prescription
 ```text
 ./mvnw verify          # компіляція, тести, JAR, SpotBugs
 ./mvnw package         # лише JAR
-java -jar target/lab01-1.1.0.jar --version
-java -jar target/lab01-1.1.0.jar
+java -jar target/lab01-1.2.0.jar --version
+java -jar target/lab01-1.2.0.jar
+java -jar target/lab01-1.2.0.jar --availability
 ```
 
 На Windows замість `./mvnw` використовуйте `mvnw.cmd`.
@@ -58,7 +61,8 @@ java -jar target/lab01-1.1.0.jar
 |-------------------|---------------------------------------------------|
 | `--input <файл>`  | вхідний CSV (типово `data/input.csv`)             |
 | `--output <файл>` | файл звіту (типово `out/report.txt`)              |
-| `--version`       | версія та номер збірки, локально `1.1.0+local`    |
+| `--availability`  | додатково вивести в консоль оцінку доступності     |
+| `--version`       | версія та номер збірки, локально `1.2.0+local`    |
 | `--help`          | довідка                                           |
 
 Коди завершення: `0` — успіх, `1` — помилка виконання (немає файла або жодного
@@ -98,7 +102,12 @@ java -jar target/lab01-1.1.0.jar
 src/main/java/ua/lpnu/kzp/
   Main.java                 аргументи командного рядка, послідовність дій
   FileReport.java           читання/запис файлів (Path, UTF-8)
-  Medicine.java             клас-сутність: інваріанти, fromCsv, toString
+  Medicine.java             абстрактний базовий тип: спільні інваріанти, of, fromCsv,
+                            equals/hashCode, абстрактні kind() і availabilityScore()
+  PrescriptionMedicine.java підтип: рецептурний препарат (ціна > 0, оцінка × 0.5)
+  FreeMedicine.java         підтип: безрецептурний препарат
+  MedicineKind.java         enum категорії: PRESCRIPTION, FREE
+  AvailabilityReport.java   поліморфний розділ «Оцінка доступності»
   MedicineParser.java       цикл читання: fromCsv + номер рядка в помилці
   ParseResult.java          записи + повідомлення про помилки
   ExpiryPrescription.java   record: найменший термін і кількість рецептурних
@@ -116,8 +125,8 @@ data/expected-report.txt    контрольний звіт ЛР № 1 для п
 `Medicine` — незмінний клас: усі поля `private final`, сеттерів немає. Створити об'єкт
 можна двома способами, і обидва проходять ті самі перевірки:
 
-- `new Medicine(name, form, price, daysToExpire, prescription)` — конструктор перевіряє
-  інваріанти;
+- `Medicine.of(name, form, price, daysToExpire, prescription)` (з ЛР № 3; у ЛР № 2 —
+  `new Medicine(...)`) — конструктор перевіряє інваріанти;
 - `Medicine.fromCsv(line)` — фабрика розбирає структуру рядка й типи полів, а потім
   викликає конструктор.
 
@@ -148,8 +157,51 @@ data/expected-report.txt    контрольний звіт ЛР № 1 для п
 | Термін і рецепт | окремі змінні в `Stats.compute` | record `ExpiryPrescription` |
 | Звіт | — | без змін (тест `BehaviorCompatibilityTest`) |
 
+## Ієрархія препаратів (ЛР № 3)
+
+```text
+              Medicine (abstract)
+   name, form, price, daysToExpire + інваріанти
+   kind(), availabilityScore() — abstract
+            /                     \
+PrescriptionMedicine          FreeMedicine
+ kind() = PRESCRIPTION         kind() = FREE
+ ціна > 0                      —
+ оцінка = цінова × 0.5         оцінка = цінова
+```
+
+- **Спільний тип** — абстрактний клас, бо підтипи мають спільний стан (4 поля) і готову
+  реалізацію (перевірки, `equals`, `hashCode`, `toString`). Обрано спадкування: рецептурний
+  і безрецептурний препарат *є різновидами* препарату (is-a).
+- **enum `MedicineKind`** — `PRESCRIPTION("рецептурний")`, `FREE("безрецептурний")` з
+  полями `label`, `saleLabel`, `requiresPrescription`. Замінив поле-прапорець
+  `prescription`: `prescription()` тепер повертає `kind().requiresPrescription()`.
+- **Поліморфна операція** — `availabilityScore()` (0–100). Спільна цінова складова
+  `priceAvailability() = max(0, 100 − price / 10)` міститься в базовому класі; рецептурний
+  препарат множить її на 0.5, безрецептурний повертає без змін.
+- **Рівність** — однаковий клас і однакові `name`, `form`, `price`, `daysToExpire`;
+  `hashCode` враховує ті самі поля й клас. Рецептурний і безрецептурний препарати з
+  однаковими полями не рівні.
+- **Вибір підтипу** — лише у фабриці `Medicine.of` (за полем `prescription` CSV). Решта коду
+  (`Stats`, `ExpiryPrescription`, `AvailabilityReport`) працює з `List<Medicine>` без
+  `instanceof` і `switch`.
+
+Приклад `--availability` для `data/input.csv` (після основного звіту):
+
+```text
+Оцінка доступності (0–100):
+  Парацетамол [безрецептурний]: 95.45
+  Амоксицилін [рецептурний]: 43.40
+  Ібупрофен [безрецептурний]: 90.13
+  Цитрамон [безрецептурний]: 96.78
+  Інсулін [рецептурний]: 24.00
+Середня оцінка: 69.95
+```
+
+Цей розділ виводиться лише в консоль; файл звіту без змін.
+
 ## Версія
 
-Версія продукту (`1.1.0`) задана в `pom.xml` і позначена Git-тегом `v1.1.0` (ЛР № 1 — `v1.0.0`). Номер збірки
-передається окремо (`-Dbuild.number=...`), у CI це номер запуску workflow, тому
-`--version` виводить, наприклад, `1.1.0+42`; локально — `1.1.0+local`.
+Версія продукту (`1.2.0`) задана в `pom.xml` і позначена Git-тегом `v1.2.0` (ЛР № 1 — `v1.0.0`,
+ЛР № 2 — `v1.1.0`). Номер збірки передається окремо (`-Dbuild.number=...`), у CI це номер
+запуску workflow, тому `--version` виводить, наприклад, `1.2.0+42`; локально — `1.2.0+local`.

@@ -7,10 +7,10 @@ import org.junit.jupiter.api.Test;
 
 class StatsTest {
     private static final List<Medicine> SAMPLE = List.of(
-            new Medicine("Парацетамол", "таблетки", 45.50, 420, false),
-            new Medicine("Амоксицилін", "капсули", 132.00, 300, true),
-            new Medicine("Цитрамон", "таблетки", 32.20, 60, false),
-            new Medicine("Інсулін", "розчин", 520.00, 90, true));
+            Medicine.of("Парацетамол", "таблетки", 45.50, 420, false),
+            Medicine.of("Амоксицилін", "капсули", 132.00, 300, true),
+            Medicine.of("Цитрамон", "таблетки", 32.20, 60, false),
+            Medicine.of("Інсулін", "розчин", 520.00, 90, true));
 
     /* Усі чотири показники на відомому наборі. */
     @Test
@@ -27,8 +27,8 @@ class StatsTest {
     @Test
     void averageKeepsFractionalPart() {
         Stats stats = Stats.compute(List.of(
-                new Medicine("А", "б", 1.0, 1, false),
-                new Medicine("В", "г", 2.0, 2, false)));
+                Medicine.of("А", "б", 1.0, 1, false),
+                Medicine.of("В", "г", 2.0, 2, false)));
 
         assertEquals(1.5, stats.averagePrice(), 0.0001);
     }
@@ -36,7 +36,7 @@ class StatsTest {
     /* Один запис: мінімум і середнє дорівнюють його значенням. */
     @Test
     void singleRecord() {
-        Stats stats = Stats.compute(List.of(new Medicine("А", "б", 10.0, 7, true)));
+        Stats stats = Stats.compute(List.of(Medicine.of("А", "б", 10.0, 7, true)));
 
         assertEquals(1, stats.count());
         assertEquals(10.0, stats.averagePrice(), 0.0001);

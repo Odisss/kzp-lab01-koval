@@ -112,4 +112,23 @@ class MainTest {
         assertTrue(result.err().contains("немає жодного коректного запису"), result.err());
         assertFalse(result.out().contains("NaN"), result.out());
     }
+
+    /* --availability додає розділ у консоль, але файл звіту лишається попереднього формату. */
+    @Test
+    void availabilityOptionPrintsScoresOnlyToConsole() throws IOException {
+        Path dir = Files.createTempDirectory("lab03");
+        Path input = writeInput(dir, String.join("\n",
+                "Парацетамол;таблетки;45.50;420;false",
+                "Інсулін;розчин;520.00;90;true"));
+        Path output = dir.resolve("report.txt");
+
+        Run result = run("--input", input.toString(), "--output", output.toString(),
+                "--availability");
+
+        assertEquals(Main.EXIT_OK, result.code());
+        assertTrue(result.out().contains("Парацетамол [безрецептурний]: 95.45"), result.out());
+        assertTrue(result.out().contains("Інсулін [рецептурний]: 24.00"), result.out());
+        String file = Files.readString(output, StandardCharsets.UTF_8);
+        assertFalse(file.contains("Оцінка доступності"), file);
+    }
 }

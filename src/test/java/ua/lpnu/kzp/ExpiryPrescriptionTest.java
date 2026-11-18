@@ -41,10 +41,10 @@ class ExpiryPrescriptionTest {
     @Test
     void ofComputesSummary() {
         ExpiryPrescription summary = ExpiryPrescription.of(List.of(
-                new Medicine("Парацетамол", "таблетки", 45.50, 420, false),
-                new Medicine("Амоксицилін", "капсули", 132.00, 300, true),
-                new Medicine("Цитрамон", "таблетки", 32.20, 60, false),
-                new Medicine("Інсулін", "розчин", 520.00, 90, true)));
+                Medicine.of("Парацетамол", "таблетки", 45.50, 420, false),
+                Medicine.of("Амоксицилін", "капсули", 132.00, 300, true),
+                Medicine.of("Цитрамон", "таблетки", 32.20, 60, false),
+                Medicine.of("Інсулін", "розчин", 520.00, 90, true)));
 
         assertEquals(new ExpiryPrescription(60, 2), summary);
     }
