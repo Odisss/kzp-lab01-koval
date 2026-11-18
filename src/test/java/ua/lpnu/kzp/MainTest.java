@@ -154,4 +154,47 @@ class MainTest {
         String file = Files.readString(output, StandardCharsets.UTF_8);
         assertFalse(file.contains("Потокові запити"), file);
     }
+
+    /* --export записує CSV, читає назад і підтверджує round-trip; --import читає файл. */
+    @Test
+    void exportAndImportRoundTrip() throws IOException {
+        Path dir = Files.createTempDirectory("lab05");
+        Path input = writeInput(dir, String.join("\n",
+                "Парацетамол;таблетки;45.50;420;false",
+                "Вітаміни \"Сонечко\", дитячі;сироп;89.90;365;false",
+                "Інсулін;розчин;520.00;90;true"));
+        Path csv = dir.resolve("csv").resolve("medicines.csv");
+
+        Run export = run("--input", input.toString(), "--output", dir.resolve("r.txt").toString(),
+                "--export", csv.toString());
+        Run imported = run("--import", csv.toString());
+
+        assertEquals(Main.EXIT_OK, export.code(), export.err());
+        assertTrue(export.out().contains("Round-trip: відновлено 3 записів, рівні: так"),
+                export.out());
+        assertTrue(Files.readString(csv, StandardCharsets.UTF_8)
+                .startsWith("придатність,форма,назва,рецепт,ціна"));
+        assertEquals(Main.EXIT_OK, imported.code(), imported.err());
+        assertTrue(imported.out().contains("Вітаміни \"Сонечко\", дитячі (сироп)"), imported.out());
+    }
+
+    /* Хибний CSV і відсутній файл при --import – помилка з причиною, без трасування стеку. */
+    @Test
+    void importErrorsShowCause() throws IOException {
+        Path dir = Files.createTempDirectory("lab05");
+        Path bad = dir.resolve("bad.csv");
+        Files.writeString(bad, "придатність,форма,назва,рецепт,ціна\n"
+                + "2027-01-10,капсули,Амоксицилін,PRESCRIPTION,дорого\n", StandardCharsets.UTF_8);
+
+        Run badRun = run("--import", bad.toString());
+        Run missing = run("--import", dir.resolve("nope.csv").toString());
+
+        assertEquals(Main.EXIT_ERROR, badRun.code());
+        assertTrue(badRun.err().contains("Запис 1: поле 5 (ціна)"), badRun.err());
+        assertTrue(badRun.err().contains("причина: java.lang.NumberFormatException"), badRun.err());
+        assertEquals(Main.EXIT_ERROR, missing.code());
+        assertTrue(missing.err().contains("NoSuchFileException"), missing.err());
+        assertEquals(Main.EXIT_USAGE, run("--export").code());
+        assertEquals(Main.EXIT_USAGE, run("--import").code());
+    }
 }
