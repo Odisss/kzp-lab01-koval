@@ -7,7 +7,7 @@
     <!-- Координати артефакта: ua.lpnu.kzp:lab01:1.1.0 -->
     <groupId>ua.lpnu.kzp</groupId>
     <artifactId>lab01</artifactId>
-    <version>1.3.0</version>
+    <version>1.4.0</version>
     <name>kzp-lab01 Аптека</name>
 
     <properties>

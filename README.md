@@ -1,6 +1,6 @@
 # kzp-lab01 — «Аптека» (варіант 11)
 
-Лабораторні роботи № 1–4 з курсу «Кросплатформні засоби програмування».
+Лабораторні роботи № 1–5 з курсу «Кросплатформні засоби програмування».
 
 - ЛР № 1 (`v1.0.0`) — консольний продукт, Maven, тести, SpotBugs, CI на трьох ОС.
 - ЛР № 2 (`v1.1.0`) — предметна частина перебудована на клас-сутність `Medicine`,
@@ -9,6 +9,9 @@
   `FreeMedicine`, enum `MedicineKind`, поліморфна оцінка доступності; звіт не змінився.
 - ЛР № 4 (`v1.3.0`) — цикли замінено на Stream API, клас запитів `MedicineQueries`,
   опція `--queries`; звіт не змінився.
+- ЛР № 5 (`v1.4.0`) — параметризоване сховище `Repository<T>`, анотація `@CsvColumn`,
+  універсальний рефлексивний CSV-експортер, документний CSV-парсер, власний виняток
+  `DataStorageException`, опції `--export` і `--import`; звіт не змінився.
 
 ## Призначення
 
@@ -50,10 +53,12 @@ name;form;price;daysToExpire;prescription
 ```text
 ./mvnw verify          # компіляція, тести, JAR, SpotBugs
 ./mvnw package         # лише JAR
-java -jar target/lab01-1.3.0.jar --version
-java -jar target/lab01-1.3.0.jar
-java -jar target/lab01-1.3.0.jar --availability
-java -jar target/lab01-1.3.0.jar --queries
+java -jar target/lab01-1.4.0.jar --version
+java -jar target/lab01-1.4.0.jar
+java -jar target/lab01-1.4.0.jar --availability
+java -jar target/lab01-1.4.0.jar --queries
+java -jar target/lab01-1.4.0.jar --input data/lab05.csv --export out/medicines.csv
+java -jar target/lab01-1.4.0.jar --import out/medicines.csv
 ```
 
 На Windows замість `./mvnw` використовуйте `mvnw.cmd`.
@@ -66,7 +71,9 @@ java -jar target/lab01-1.3.0.jar --queries
 | `--output <файл>` | файл звіту (типово `out/report.txt`)              |
 | `--availability`  | додатково вивести в консоль оцінку доступності     |
 | `--queries`       | додатково вивести в консоль потокові запити        |
-| `--version`       | версія та номер збірки, локально `1.3.0+local`    |
+| `--export <csv>`  | зберегти коректні записи в CSV і перевірити round-trip |
+| `--import <csv>`  | прочитати CSV, створений `--export`, і вивести записи |
+| `--version`       | версія та номер збірки, локально `1.4.0+local`    |
 | `--help`          | довідка                                           |
 
 Коди завершення: `0` — успіх, `1` — помилка виконання (немає файла або жодного
@@ -120,9 +127,19 @@ src/main/java/ua/lpnu/kzp/
   Stats.java                record: чотири показники
   ReportFormatter.java      текст звіту (Locale.ROOT, %n)
   BuildInfo.java            версія та номер збірки
+  Repository.java           параметризоване сховище Repository<T>: add, all, find
+  CsvColumn.java            анотація назви CSV-стовпця (RUNTIME, FIELD)
+  CsvExporter.java          універсальний рефлексивний CSV-експортер
+  CsvParser.java            документний CSV-парсер (машина станів)
+  DataStorageException.java власний checked-виняток із cause
+  MedicineRecord.java       плоский запис варіанта для CSV (LocalDate, enum)
+  MedicineCsvStore.java     запис/читання MedicineRecord, перевірка заголовка
 src/main/resources/version.properties   шаблон, який заповнює Maven
 src/test/java/...           тести JUnit 5
 data/expected-report.txt    контрольний звіт ЛР № 1 для перевірки сумісності
+data/lab05.csv              вхід ЛР № 5: 6 коректних записів (один з комою й лапками) + 1 хибний
+data/lab05-invalid.csv      CSV із хибним числом для демонстрації помилки
+data/lab05-empty.csv        порожній CSV (0 записів)
 .github/workflows/ci.yml    CI на ubuntu, windows, macos
 ```
 
@@ -235,8 +252,57 @@ PrescriptionMedicine          FreeMedicine
   Топ-5 за найближчою придатністю: [Цитрамон, Інсулін, Ібупрофен, Амоксицилін, Парацетамол]
 ```
 
+## CSV-сховище (ЛР № 5)
+
+Коректні препарати зберігаються в `Repository<Medicine>` (знімок `all()` незмінний,
+пошук `find(Predicate<? super T>)`). Для експорту кожен препарат перетворюється на
+плоский `MedicineRecord`: дні до кінця придатності → дата `expiresOn`
+(сьогодні + дні), ознака рецепта → enum `MedicineKind`.
+
+| Поле Java | Тип | CSV-стовпець (`@CsvColumn`) |
+|-----------|-----|-----------------------------|
+| `expiresOn` | `LocalDate` | придатність |
+| `form` | `String` | форма |
+| `name` | `String` | назва |
+| `prescription` | `MedicineKind` | рецепт |
+| `price` | `double` | ціна |
+
+`CsvExporter` не знає класу `MedicineRecord`: рефлексією бере всі поля з `@CsvColumn`
+(включно з суперкласами), сортує їх за Java-іменем і записує файл через
+`Files.writeString(..., UTF_8, TRUNCATE_EXISTING)`. Значення з комою, лапкою або
+перенесенням рядка береться в лапки, лапка подвоюється. Читання — `Files.readString`
+з UTF-8 і `CsvParser.parseDocument` (розрізняє кому й перенесення всередині лапок,
+приймає `\n` і `\r\n`). Ключ round-trip — назва + форма.
+
+```text
+> java -jar target/lab01-1.4.0.jar --input data/lab05.csv --export out/medicines.csv
+...
+CSV записано: out/medicines.csv (6 записів)
+Round-trip: відновлено 6 записів, рівні: так
+```
+
+`out/medicines.csv` (дати відлічуються від дня запуску, тут 2026-11-18):
+
+```text
+придатність,форма,назва,рецепт,ціна
+2028-01-12,таблетки,Парацетамол,FREE,45.5
+2027-09-14,капсули,Амоксицилін,PRESCRIPTION,132.0
+2027-05-17,гель,Ібупрофен,FREE,98.75
+2027-01-17,таблетки,Цитрамон,FREE,32.2
+2027-02-16,розчин,Інсулін,PRESCRIPTION,520.0
+2027-11-18,сироп,"Вітаміни ""Сонечко"", дитячі",FREE,89.9
+```
+
+Помилки (`DataStorageException`, першопричина — у `getCause()`):
+
+```text
+> java -jar target/lab01-1.4.0.jar --import data/lab05-invalid.csv
+Помилка: Запис 2: поле 5 (ціна): не є числом 'дорого'
+  причина: java.lang.NumberFormatException: For input string: "дорого"
+```
+
 ## Версія
 
-Версія продукту (`1.3.0`) задана в `pom.xml` і позначена Git-тегом `v1.3.0` (ЛР № 1 — `v1.0.0`,
-ЛР № 2 — `v1.1.0`, ЛР № 3 — `v1.2.0`). Номер збірки передається окремо (`-Dbuild.number=...`), у CI це номер
-запуску workflow, тому `--version` виводить, наприклад, `1.3.0+42`; локально — `1.3.0+local`.
+Версія продукту (`1.4.0`) задана в `pom.xml` і позначена Git-тегом `v1.4.0` (ЛР № 1 — `v1.0.0`,
+ЛР № 2 — `v1.1.0`, ЛР № 3 — `v1.2.0`, ЛР № 4 — `v1.3.0`). Номер збірки передається окремо (`-Dbuild.number=...`), у CI це номер
+запуску workflow, тому `--version` виводить, наприклад, `1.4.0+42`; локально — `1.4.0+local`.
