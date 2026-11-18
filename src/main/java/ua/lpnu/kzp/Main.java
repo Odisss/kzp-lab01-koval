@@ -62,6 +62,7 @@ public final class Main {
         String input = DEFAULT_INPUT;
         String output = DEFAULT_OUTPUT;
         boolean availability = false;
+        boolean queries = false;
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
             switch (arg) {
@@ -82,6 +83,7 @@ public final class Main {
                     output = args[++i];
                 }
                 case "--availability" -> availability = true;
+                case "--queries" -> queries = true;
                 default -> {
                     return usageError(err, "невідомий аргумент: " + arg);
                 }
@@ -96,7 +98,7 @@ public final class Main {
         } catch (InvalidPathException exception) {
             return usageError(err, "некоректний шлях: " + exception.getInput());
         }
-        return process(inputPath, outputPath, availability, out, err);
+        return process(inputPath, outputPath, availability, queries, out, err);
     }
 
     /**
@@ -105,11 +107,12 @@ public final class Main {
      * @param input  шлях до вхідного файла
      * @param output шлях до файла звіту
      * @param availability {@code true}, якщо потрібно додатково вивести оцінку доступності
+     * @param queries {@code true}, якщо потрібно додатково вивести результати потокових запитів
      * @param out    потік звичайного виводу
      * @param err    потік повідомлень про помилки
      * @return код завершення
      */
-    private static int process(Path input, Path output, boolean availability,
+    private static int process(Path input, Path output, boolean availability, boolean queries,
                                PrintStream out, PrintStream err) {
         List<String> lines;
         try {
@@ -133,6 +136,10 @@ public final class Main {
         if (availability) {
             // Додатковий розділ лише в консолі: файл звіту лишається сумісним із ЛР1–ЛР2.
             out.print(AvailabilityReport.format(parsed.medicines()));
+        }
+        if (queries) {
+            // Як і --availability: лише консоль, файл звіту не змінюється.
+            out.print(QueryReport.format(parsed.medicines()));
         }
         try {
             FileReport.writeReport(output, report);
@@ -171,13 +178,14 @@ public final class Main {
         out.printf("Аптека: звіт за файлом препаратів (лабораторні роботи № 1–3, варіант 11)%n");
         out.printf("%n");
         out.printf("Використання:%n");
-        out.printf("  java -jar lab01.jar [--input <файл>] [--output <файл>] [--availability]%n");
+        out.printf("  java -jar lab01.jar [--input <файл>] [--output <файл>] [--availability] [--queries]%n");
         out.printf("  java -jar lab01.jar --help | --version%n");
         out.printf("%n");
         out.printf("Параметри:%n");
         out.printf("  --input <файл>   вхідний CSV, UTF-8 (типово %s)%n", DEFAULT_INPUT);
         out.printf("  --output <файл>  файл звіту (типово %s)%n", DEFAULT_OUTPUT);
         out.printf("  --availability   додатково вивести оцінку доступності препаратів%n");
+        out.printf("  --queries        додатково вивести результати потокових запитів%n");
         out.printf("  --version        версія та номер збірки, напр. 1.2.0+local%n");
         out.printf("  --help           ця довідка%n");
         out.printf("%n");

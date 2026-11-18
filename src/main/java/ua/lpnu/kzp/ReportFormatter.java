@@ -33,9 +33,9 @@ public final class ReportFormatter {
         report.append(String.format(Locale.ROOT, "Рецептурних препаратів: %d%n",
                 stats.prescriptionCount()));
         report.append(String.format(Locale.ROOT, "Пропущено рядків: %d%n", errors.size()));
-        for (String error : errors) {
-            report.append(String.format(Locale.ROOT, "  %s%n", error));
-        }
+        errors.stream()
+                .map(error -> String.format(Locale.ROOT, "  %s%n", error))
+                .forEachOrdered(report::append);
         return report.toString();
     }
 }
