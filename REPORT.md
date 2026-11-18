@@ -22,7 +22,7 @@
 `DataStorageException` із причиною та довести round-trip «об'єкт → CSV → об'єкт».
 
 Досягнутий стан: звіт для контрольного файла не змінився, усі 79 попередніх тестів
-проходять, додано 32 нові (разом 111), `verify` зі SpotBugs проходить, JAR створюється,
+проходять, додано 33 нові (разом 112), `verify` зі SpotBugs проходить, JAR створюється,
 CI на трьох ОС зелений.
 
 ## 3. Модель даних варіанта
@@ -206,10 +206,10 @@ Round-trip: відновлено 6 записів, рівні: так
 | `RepositoryTest` | 4 | порядок, незмінний знімок, `find` з предикатом супертипу, відхилення `null` |
 | `CsvExporterTest` | 9 | `RUNTIME`/`FIELD`, заголовок варіанта, довільний клас і суперклас, порожній список, екранування, клас без анотацій, незмінність входу, UTF-8 і `TRUNCATE_EXISTING`, cause `IOException` |
 | `CsvParserTest` | 6 | кома в лапках проти `split`, подвоєні лапки, multiline, `\r\n`/BOM, порожні поля, хибний формат |
-| `MedicineCsvStoreTest` | 11 | round-trip 7 записів (кома, лапки, перенесення), екранування у файлі, `Medicine ↔ MedicineRecord`, порожній файл і лише заголовок, хибна кількість полів, хибне число/enum/дата з cause, інваріант, хибний заголовок, відсутній файл, валідація, `equals`/`hashCode`/ключ |
+| `MedicineCsvStoreTest` | 12 | round-trip 7 записів (кома, лапки, перенесення), екранування у файлі, `Medicine ↔ MedicineRecord`, порожній файл і лише заголовок, хибна кількість полів, хибне число/enum/дата з cause, інваріант, хибний заголовок, відсутній файл, валідація, `equals`/`hashCode`/ключ |
 | `MainTest` | +2 | `--export` + `--import` з round-trip; помилки `--import` з причиною, аргументи без значення |
 
-Разом 111 тестів (79 попередніх + 32 нові), усі проходять. Звіт для `data/input.csv` не
+Разом 112 тестів (79 попередніх + 33 нові), усі проходять. Звіт для `data/input.csv` не
 змінився (`BehaviorCompatibilityTest`).
 
 ## 10. Інфраструктура
@@ -238,7 +238,7 @@ Maven Wrapper, `.github/workflows/ci.yml` (ubuntu/windows/macos, артефак�
 | #25 | універсальний рефлексивний `CsvExporter` | довільний клас, суперклас, UTF-8, `TRUNCATE_EXISTING` |
 | #26 | документний `CsvParser` і `MedicineCsvStore` | `CsvParserTest`, round-trip |
 | #27 | `DataStorageException` і рівні помилок | тести cause |
-| #28 | тести й опції `--export`/`--import` | `mvnw test` — 111 тестів |
+| #28 | тести й опції `--export`/`--import` | `mvnw test` — 112 тестів |
 | #29 | README, REPORT, Javadoc, версія 1.4.0; CI | `verify`, CI на трьох ОС |
 
 Pull Request `lab05 → main` містить `Closes #23` … `Closes #29`, приклад CSV, результат

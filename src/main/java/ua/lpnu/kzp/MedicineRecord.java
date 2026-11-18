@@ -153,9 +153,10 @@ public final class MedicineRecord {
                     "поле 4 (рецепт): невідома категорія '%s'".formatted(fields.get(3)),
                     exception);
         }
+        // Парсер ніколи не повертає null-полів, тому лишається тільки порушення інваріанту.
         try {
             return new MedicineRecord(fields.get(2), fields.get(1), price, expiresOn, kind);
-        } catch (IllegalArgumentException | NullPointerException exception) {
+        } catch (IllegalArgumentException exception) {
             throw new DataStorageException("некоректний запис: " + exception.getMessage(),
                     exception);
         }
