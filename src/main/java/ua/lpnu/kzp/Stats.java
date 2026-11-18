@@ -1,5 +1,6 @@
 package ua.lpnu.kzp;
 
+import java.util.DoubleSummaryStatistics;
 import java.util.List;
 import java.util.Objects;
 
@@ -44,14 +45,11 @@ public record Stats(int count, double averagePrice, ExpiryPrescription expiryPre
      * @return показники; для порожнього набору середня ціна 0, мінімальний термін -1
      */
     public static Stats compute(List<Medicine> medicines) {
-        int count = medicines.size();
-        double totalPrice = 0.0;
-        for (Medicine medicine : medicines) {
-            totalPrice += medicine.price();
-        }
-        // Окремо обробляємо порожній набір, щоб не ділити на нуль; ділення виконується в double.
-        double average = count == 0 ? 0.0 : totalPrice / count;
-        return new Stats(count, average, ExpiryPrescription.of(medicines));
+        // Одна зведена статистика замість ручного накопичення суми в циклі.
+        DoubleSummaryStatistics prices = MedicineQueries.priceStatistics(medicines);
+        // Для порожнього набору getAverage() повертає 0.0 — як і попередня реалізація.
+        return new Stats(Math.toIntExact(prices.getCount()), prices.getAverage(),
+                ExpiryPrescription.of(medicines));
     }
 
     /**

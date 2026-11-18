@@ -131,4 +131,27 @@ class MainTest {
         String file = Files.readString(output, StandardCharsets.UTF_8);
         assertFalse(file.contains("Оцінка доступності"), file);
     }
+
+    /* --queries друкує п'ять потокових запитів лише в консоль. */
+    @Test
+    void queriesOptionPrintsStreamResultsOnlyToConsole() throws IOException {
+        Path dir = Files.createTempDirectory("lab04");
+        Path input = writeInput(dir, String.join("\n",
+                "Парацетамол;таблетки;45.50;420;false",
+                "Цитрамон;таблетки;32.20;30;false",
+                "Інсулін;розчин;520.00;90;true"));
+        Path output = dir.resolve("report.txt");
+
+        Run result = run("--input", input.toString(), "--output", output.toString(),
+                "--queries");
+
+        assertEquals(Main.EXIT_OK, result.code());
+        assertTrue(result.out().contains("Придатність до 30 днів: [Цитрамон]"), result.out());
+        assertTrue(result.out().contains("Кількість за формою: {розчин=1, таблетки=2}"),
+                result.out());
+        assertTrue(result.out().contains("Топ-5 за найближчою придатністю: "
+                + "[Цитрамон, Інсулін, Парацетамол]"), result.out());
+        String file = Files.readString(output, StandardCharsets.UTF_8);
+        assertFalse(file.contains("Потокові запити"), file);
+    }
 }

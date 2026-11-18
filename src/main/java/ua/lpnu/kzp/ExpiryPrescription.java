@@ -38,17 +38,15 @@ public record ExpiryPrescription(int minDaysToExpire, int prescriptionCount) {
      * @return підсумок; для порожнього списку термін дорівнює {@link #NO_DATA}
      */
     public static ExpiryPrescription of(List<Medicine> medicines) {
-        if (medicines.isEmpty()) {
-            return new ExpiryPrescription(NO_DATA, 0);
-        }
-        int minDays = Integer.MAX_VALUE;
-        int prescriptions = 0;
-        for (Medicine medicine : medicines) {
-            minDays = Math.min(minDays, medicine.daysToExpire());
-            if (medicine.prescription()) {
-                prescriptions++;
-            }
-        }
-        return new ExpiryPrescription(minDays, prescriptions);
+        // Порожній потік дає OptionalInt.empty(), що відповідає значенню NO_DATA.
+        int minDays = medicines.stream()
+                .mapToInt(Medicine::daysToExpire)
+                .min()
+                .orElse(NO_DATA);
+        // Ознаку рецепта дає enum категорії — без перевірки конкретного підтипу.
+        long prescriptions = medicines.stream()
+                .filter(medicine -> medicine.kind().requiresPrescription())
+                .count();
+        return new ExpiryPrescription(minDays, Math.toIntExact(prescriptions));
     }
 }

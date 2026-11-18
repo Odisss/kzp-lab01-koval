@@ -1,12 +1,14 @@
 # kzp-lab01 — «Аптека» (варіант 11)
 
-Лабораторні роботи № 1–3 з курсу «Кросплатформні засоби програмування».
+Лабораторні роботи № 1–4 з курсу «Кросплатформні засоби програмування».
 
 - ЛР № 1 (`v1.0.0`) — консольний продукт, Maven, тести, SpotBugs, CI на трьох ОС.
 - ЛР № 2 (`v1.1.0`) — предметна частина перебудована на клас-сутність `Medicine`,
   фабрику `fromCsv` і record `ExpiryPrescription`; зовнішній звіт не змінився.
 - ЛР № 3 (`v1.2.0`) — ієрархія: абстрактний `Medicine`, підтипи `PrescriptionMedicine` і
   `FreeMedicine`, enum `MedicineKind`, поліморфна оцінка доступності; звіт не змінився.
+- ЛР № 4 (`v1.3.0`) — цикли замінено на Stream API, клас запитів `MedicineQueries`,
+  опція `--queries`; звіт не змінився.
 
 ## Призначення
 
@@ -48,9 +50,10 @@ name;form;price;daysToExpire;prescription
 ```text
 ./mvnw verify          # компіляція, тести, JAR, SpotBugs
 ./mvnw package         # лише JAR
-java -jar target/lab01-1.2.0.jar --version
-java -jar target/lab01-1.2.0.jar
-java -jar target/lab01-1.2.0.jar --availability
+java -jar target/lab01-1.3.0.jar --version
+java -jar target/lab01-1.3.0.jar
+java -jar target/lab01-1.3.0.jar --availability
+java -jar target/lab01-1.3.0.jar --queries
 ```
 
 На Windows замість `./mvnw` використовуйте `mvnw.cmd`.
@@ -62,7 +65,8 @@ java -jar target/lab01-1.2.0.jar --availability
 | `--input <файл>`  | вхідний CSV (типово `data/input.csv`)             |
 | `--output <файл>` | файл звіту (типово `out/report.txt`)              |
 | `--availability`  | додатково вивести в консоль оцінку доступності     |
-| `--version`       | версія та номер збірки, локально `1.2.0+local`    |
+| `--queries`       | додатково вивести в консоль потокові запити        |
+| `--version`       | версія та номер збірки, локально `1.3.0+local`    |
 | `--help`          | довідка                                           |
 
 Коди завершення: `0` — успіх, `1` — помилка виконання (немає файла або жодного
@@ -108,6 +112,8 @@ src/main/java/ua/lpnu/kzp/
   FreeMedicine.java         підтип: безрецептурний препарат
   MedicineKind.java         enum категорії: PRESCRIPTION, FREE
   AvailabilityReport.java   поліморфний розділ «Оцінка доступності»
+  MedicineQueries.java      потокові запити: filter, map, groupingBy, статистика, top-N, Optional
+  QueryReport.java          консольний розділ «Потокові запити» (--queries)
   MedicineParser.java       цикл читання: fromCsv + номер рядка в помилці
   ParseResult.java          записи + повідомлення про помилки
   ExpiryPrescription.java   record: найменший термін і кількість рецептурних
@@ -200,8 +206,37 @@ PrescriptionMedicine          FreeMedicine
 
 Цей розділ виводиться лише в консоль; файл звіту без змін.
 
+## Потокові запити (ЛР № 4)
+
+Клас `MedicineQueries` — набір чистих запитів до `List<Medicine>`; кожен створює новий
+потік і не змінює вхідний список. Форматування для консолі — у `QueryReport`.
+
+| Метод | Конвеєр | Результат |
+|-------|---------|-----------|
+| `expiringSoon` | `filter(daysToExpire ≤ 30)` → `toList()` | `List<Medicine>` |
+| `names` | `map(name)` → `toList()` | `List<String>` |
+| `countByForm` | `groupingBy(form, TreeMap::new, counting())` | `Map<String, Long>` |
+| `priceStatistics` | `summarizingDouble(price)` | `DoubleSummaryStatistics` |
+| `nearestExpiry(n)` | `sorted(днів ↑, назва ↑)` → `limit(n)` → `map(name)` | `List<String>` |
+| `findByName` | `filter(name)` → `findFirst()` | `Optional<Medicine>` |
+
+Поріг — 30 днів (межа входить), N = 5; від'ємний N → `IllegalArgumentException`.
+Показники основного звіту (`Stats`, `ExpiryPrescription`) теж обчислюються потоками,
+результат не змінився.
+
+Приклад `--queries` для `data/input.csv`:
+
+```text
+Потокові запити:
+  Придатність до 30 днів: []
+  Назви: [Парацетамол, Амоксицилін, Ібупрофен, Цитрамон, Інсулін]
+  Кількість за формою: {гель=1, капсули=1, розчин=1, таблетки=2}
+  Ціна: кількість=5, min=32.20, max=520.00, сума=828.45, середня=165.69
+  Топ-5 за найближчою придатністю: [Цитрамон, Інсулін, Ібупрофен, Амоксицилін, Парацетамол]
+```
+
 ## Версія
 
-Версія продукту (`1.2.0`) задана в `pom.xml` і позначена Git-тегом `v1.2.0` (ЛР № 1 — `v1.0.0`,
-ЛР № 2 — `v1.1.0`). Номер збірки передається окремо (`-Dbuild.number=...`), у CI це номер
-запуску workflow, тому `--version` виводить, наприклад, `1.2.0+42`; локально — `1.2.0+local`.
+Версія продукту (`1.3.0`) задана в `pom.xml` і позначена Git-тегом `v1.3.0` (ЛР № 1 — `v1.0.0`,
+ЛР № 2 — `v1.1.0`, ЛР № 3 — `v1.2.0`). Номер збірки передається окремо (`-Dbuild.number=...`), у CI це номер
+запуску workflow, тому `--version` виводить, наприклад, `1.3.0+42`; локально — `1.3.0+local`.
