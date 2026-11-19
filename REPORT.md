@@ -325,7 +325,17 @@ exit=2
 запуск CLI і порівняння з еталоном → перевірка коду 2 для пошкодженого CSV →
 публікація артефакту `wheel-<ОС>-<номер запуску>`.
 
-⟨CI⟩
+| Запуск | Подія | Результат |
+|--------|-------|-----------|
+| [CI #37](https://github.com/Odisss/kzp-lab01-koval/actions/runs/44475352649) | push у `lab06` (ba3a4de) | успіх, 6 job (3 × `verify`, 3 × `python`), 6 артефактів |
+| [CI #38](https://github.com/Odisss/kzp-lab01-koval/actions/runs/44475438680) | pull request #37 | успіх, 6 job, 52 с, 6 артефактів |
+
+У job `python` на кожній ОС пройшли pytest (45), `ruff check`, `ruff format --check`,
+`python -m build`; wheel встановлено в чисте `.venv-wheel`, звіт збігся з еталоном
+(`diff`), для пошкодженого CSV отримано код 2. Wheel-артефакти: `wheel-ubuntu-latest-<N>`,
+`wheel-windows-latest-<N>`, `wheel-macos-latest-<N>` на сторінці запуску (розділ
+Artifacts). Попередження в анотаціях стосуються лише застарілого Node.js 20 у
+стандартних actions і на результат не впливають.
 
 ## 13. GitHub Issues і Pull Request
 
@@ -338,7 +348,7 @@ exit=2
 | [#35](https://github.com/Odisss/kzp-lab01-koval/issues/35) | `pyproject.toml`, ruff, wheel, `.gitignore` | ruff чистий, звіт із wheel збігається з еталоном |
 | [#36](https://github.com/Odisss/kzp-lab01-koval/issues/36) | job `python` у CI, README, REPORT, `REPORT-lab05.md` | зелений CI на трьох ОС |
 
-Pull Request ⟨PR⟩ з гілки `lab06` у `main` закриває всі шість Issues (`Closes #31` … `Closes #36`)
+Pull Request [#37](https://github.com/Odisss/kzp-lab01-koval/pull/37) з гілки `lab06` у `main` закриває всі шість Issues (`Closes #31` … `Closes #36`)
 і містить приклад CSV, повний звіт, результати локальної перевірки та CI.
 
 ## 14. Академічна доброчесність
