@@ -301,9 +301,33 @@ All checks passed!
 код 2. Матриця (Ubuntu, Windows, macOS), Java-job `verify` і публікація артефактів
 `wheel-<ОС>-<номер>` не змінювалися.
 
+| Запуск | Подія | Результат |
+|--------|-------|-----------|
+| [CI #43](https://github.com/Odisss/kzp-lab01-koval/actions/runs/44482849927) | push у `lab07` (84db840) | успіх, 6 job (3 × `verify`, 3 × `python`), 49 с, 6 артефактів |
+| [CI #44](https://github.com/Odisss/kzp-lab01-koval/actions/runs/44483119593) | pull request #44 | успіх, 6 job, 56 с, 6 артефактів |
+| [CI #45](https://github.com/Odisss/kzp-lab01-koval/actions/runs/44483963069) | push у `main` після merge (b94c1cd) | успіх, 6 job |
+| [CI #46](https://github.com/Odisss/kzp-lab01-koval/actions/runs/44484017965) | тег `v1.6.0` | успіх, 6 job |
+
+У job `python` на кожній ОС пройшли pytest (127), `ruff check`, `ruff format --check`,
+`python -m build`; wheel `kzp_lab07-1.6.0` встановлено в чисте `.venv-wheel`, звіти
+`kzp_lab06` і `kzp_lab07` збіглися з еталонами (`diff`), для пошкоджених CSV отримано код 2.
+Попередження в анотаціях стосуються лише застарілого Node.js 20 і `setup-java@v4`.
+
 ## 12. GitHub Issues і Pull Request
 
-Заповнюється після створення Issues і Pull Request.
+| Issue | Зміна | Перевірка |
+|-------|-------|-----------|
+| [#38](https://github.com/Odisss/kzp-lab01-koval/issues/38) | `models.py`: `Medicine`, `@property` і setter-валідація | `tests/test_models.py` |
+| [#39](https://github.com/Odisss/kzp-lab01-koval/issues/39) | `ReportSummary` (`@dataclass(frozen=True)`), `__str__`, `__repr__`, `__eq__`, ключі сортування | `test_models.py`, `test_lab07_analysis.py` |
+| [#40](https://github.com/Odisss/kzp-lab01-koval/issues/40) | підтипи `PrescriptionMedicine`, `FreeMedicine`, протокол `Available` | різні формули, качина типізація |
+| [#41](https://github.com/Odisss/kzp-lab01-koval/issues/41) | `loader`, `analysis`, `reporting` (`ReportWriter`), `cli --scores` | еталони ЛР № 6 і ЛР № 7 |
+| [#42](https://github.com/Odisss/kzp-lab01-koval/issues/42) | 82 нові тести, дані `lab07*.csv`, `test_compat.py` | `python -m pytest` — 127 passed |
+| [#43](https://github.com/Odisss/kzp-lab01-koval/issues/43) | README, REPORT, `REPORT-lab06.md`, CI, версія 1.6.0 | зелений CI на трьох ОС |
+
+Pull Request [#44](https://github.com/Odisss/kzp-lab01-koval/pull/44) з гілки `lab07` у `main` закриває всі шість Issues
+(`Closes #38` … `Closes #43`), містить опис моделі, порівняння звітів і результати
+перевірок; злито через Squash and merge (коміт `b94c1cd`), після `git pull` поставлено тег
+`v1.6.0`.
 
 ## 13. Академічна доброчесність
 
