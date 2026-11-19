@@ -16,3 +16,15 @@ out/
 
 # Звіти у форматі Word здаються окремо у ВНС і не є частиною проєкту.
 *.docx
+
+# Python (ЛР № 6): віртуальні середовища, збірка, кеші та згенеровані звіти.
+.venv/
+.venv-wheel/
+build/
+dist/
+*.egg-info/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+reports/
