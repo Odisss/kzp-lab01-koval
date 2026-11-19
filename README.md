@@ -1,6 +1,6 @@
 # kzp-lab01 — «Аптека» (варіант 11)
 
-Лабораторні роботи № 1–6 з курсу «Кросплатформні засоби програмування».
+Лабораторні роботи № 1–7 з курсу «Кросплатформні засоби програмування».
 
 - ЛР № 1 (`v1.0.0`) — консольний продукт, Maven, тести, SpotBugs, CI на трьох ОС.
 - ЛР № 2 (`v1.1.0`) — предметна частина перебудована на клас-сутність `Medicine`,
@@ -15,6 +15,10 @@
 - ЛР № 6 (`v1.5.0`) — окремий Python-етап: пакет `kzp_lab06` (CSV → типізовані записи →
   текстовий звіт), pytest, ruff, wheel; див. розділ [Python-пакет (ЛР № 6)](#python-пакет-лр--6).
   Java-частина не змінювалася.
+- ЛР № 7 (`v1.6.0`) — продовження Python-етапу: пакет `kzp_lab07` з об'єктною моделлю
+  (`Medicine` з `@property`, підтипи `PrescriptionMedicine` і `FreeMedicine`, протокол
+  `Available`, `@dataclass(frozen=True)` `ReportSummary`), опція `--scores`; звіт ЛР № 6
+  не змінився; див. розділ [Об'єктна модель (ЛР № 7)](#обєктна-модель-лр--7).
 
 ## Призначення
 
@@ -313,6 +317,10 @@ Round-trip: відновлено 6 записів, рівні: так
 Python-пакет ЛР № 6 має версію `1.5.0` (`pyproject.toml`, `kzp_lab06.__version__`) і тег
 `v1.5.0`; Java-частина в цьому релізі не змінювалася й залишається `1.4.0` у `pom.xml`.
 
+Python-дистрибутив ЛР № 7 — `kzp-lab07` версії `1.6.0` (`pyproject.toml`,
+`kzp_lab07.__version__`), тег `v1.6.0`. Він містить обидва пакети: `kzp_lab07` (новий) і
+`kzp_lab06` (без змін, `--version` лишається `1.5.0` як зафіксована попередня реалізація).
+
 ## Python-пакет (ЛР № 6)
 
 Пакет `kzp_lab06` читає CSV аптеки, перетворює рядки на записи з типізованими полями,
@@ -419,3 +427,75 @@ python -m venv .venv-wheel
 CI (`.github/workflows/ci.yml`, job `python`) на Ubuntu, Windows і macOS запускає pytest,
 ruff, збирає wheel, встановлює його в чисте середовище, звіряє звіт з еталоном, перевіряє
 код 2 для пошкодженого CSV і публікує артефакт `wheel-<ОС>-<номер>`.
+
+## Об'єктна модель (ЛР № 7)
+
+Пакет `kzp_lab07` читає той самий CSV (`name,form,price,days_left,prescription`), але
+кожен рядок стає об'єктом, а не словником. Перевірка значень перенесена у властивості
+моделі, вибір поведінки — у підтипи. Без опції `--scores` звіт побайтово збігається зі
+звітом ЛР № 6 (`data/lab06-expected-report.txt`).
+
+### Модель
+
+| Елемент | Що робить |
+|---------|-----------|
+| `Medicine` | базовий клас: `__init__`, властивості `name`, `form`, `price`, `days_left` із setter-перевірками, `prescription` (лише читання), `is_expiring()`, `__str__`, `__repr__`, `__eq__` |
+| `PrescriptionMedicine` | рецептурний: `availability_score()` = `min(days_left, 180) / 180 · 60` |
+| `FreeMedicine` | безрецептурний: `availability_score()` = `min(days_left, 365) / 365 · 100` |
+| `Available` | `typing.Protocol` (`runtime_checkable`): властивості й метод, з якими працює `analysis` |
+| `ReportSummary` | `@dataclass(frozen=True)` — незмінний підсумок звіту |
+| `ReportWriter` | контекстний менеджер безпечного запису: тимчасовий файл → `os.replace`; за винятку файл закривається й видаляється |
+
+Підтип обирає `loader` за полем `prescription` (`{True: PrescriptionMedicine, False:
+FreeMedicine}`); `analysis` не перевіряє конкретний клас і викликає лише
+`availability_score()`, `prescription` та інші властивості протоколу. Сортування задане
+ключами `expiry_key` (термін, назва) і `availability_key` (індекс, назва).
+
+### Модулі
+
+```text
+src/kzp_lab07/
+  __init__.py   версія й публічний API
+  models.py     Medicine, підтипи, протокол Available, ReportSummary
+  errors.py     DataError
+  loader.py     CSV → об'єкти, номер рядка в помилці
+  analysis.py   обчислення через протокол, make_summary → ReportSummary
+  reporting.py  текст звіту, ReportWriter, write_report
+  cli.py        аргументи, коди 0/2/1
+data/           lab07.csv (8 записів, дублікат), lab07-invalid.csv, lab07-expected-report.txt
+```
+
+### Запуск
+
+```text
+python -m pip uninstall -y kzp-lab06      # лише якщо в .venv лишився дистрибутив ЛР № 6
+python -m pip install -e ".[dev]"
+python -m kzp_lab07.cli data/lab06.csv reports/summary.txt
+kzp-lab07 data/lab07.csv reports/scores.txt --scores
+```
+
+Аргументи ті самі, що в ЛР № 6 (`input_csv`, `output_report`, `--max-days N`,
+`--version`), плюс `--scores` — додати розділ індексу доступності. Коди завершення: `0`,
+`2` (дані/аргументи), `1` (запис).
+
+Фрагмент звіту `data/lab07.csv --scores`:
+
+```text
+Індекс доступності (від найменшого):
+  Нурофен: 0.00
+  Цитрамон: 3.29
+  Цитрамон: 3.29
+  Ібупрофен: 8.22
+  Амоксицилін: 8.33
+  Інсулін: 30.00
+  Вітаміни "Сонечко", дитячі: 100.00
+  Парацетамол: 100.00
+```
+
+### Перевірки
+
+`python -m pytest` — 127 тестів: 45 тестів ЛР № 6 без змін і 82 нові (`test_models.py`,
+`test_lab07_*.py`, `test_compat.py`). `test_compat.py` порівнює звіти словникової й
+об'єктної моделей на однакових CSV і порогах. Wheel `kzp_lab07-1.6.0-py3-none-any.whl`
+у CI встановлюється в чисте середовище, звіт звіряється з обома еталонами, для
+`data/lab07-invalid.csv` перевіряється код 2.

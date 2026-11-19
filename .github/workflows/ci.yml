@@ -88,6 +88,16 @@ jobs:
           set -e
           echo "exit code for invalid CSV: $code"
           test "$code" -eq 2
+          "$PY" -m kzp_lab07.cli data/lab06.csv reports/lab07-summary.txt
+          diff --strip-trailing-cr data/lab06-expected-report.txt reports/lab07-summary.txt
+          "$PY" -m kzp_lab07.cli data/lab07.csv reports/lab07-scores.txt --scores
+          diff --strip-trailing-cr data/lab07-expected-report.txt reports/lab07-scores.txt
+          set +e
+          "$PY" -m kzp_lab07.cli data/lab07-invalid.csv reports/lab07-invalid.txt
+          code=$?
+          set -e
+          echo "lab07 exit code for invalid CSV: $code"
+          test "$code" -eq 2
 
       - name: Upload wheel
         if: success()
